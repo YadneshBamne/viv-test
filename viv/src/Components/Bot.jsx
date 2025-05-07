@@ -9,11 +9,11 @@ import { jwtDecode } from "jwt-decode"
 import axios from "axios"
 import { ThreeDots } from "react-loader-spinner"
 import remarkGfm from "remark-gfm"
-import ReactMarkdown from "react-markdown"
+import Markdown from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { dracula } from "react-syntax-highlighter/dist/esm/styles/prism"
 import BACKENDURL from "./urls"
-import { Copy, ThumbsUp, ThumbsDown } from "lucide-react"
+import { Copy, ThumbsUp, ThumbsDown, Send, Square, ArrowUp, Dot } from "lucide-react"
 
 const ClaudeChatUI = () => {
   const navigate = useNavigate()
@@ -48,6 +48,7 @@ const ClaudeChatUI = () => {
   const [chat, setChat] = useState(null)
   const [onChatUpdate, setOnChatUpdate] = useState(null)
   const [generateChatTitle, setGenerateChatTitle] = useState(() => {})
+  const [displayedText, setDisplayedText] = useState({})
 
   const handleLike = (index) => {
     alert("Thanks for your response!")
@@ -71,7 +72,6 @@ const ClaudeChatUI = () => {
       })
       .then((response) => {
         alert("Chat title updated successfully!")
-        // Optionally update the UI or reload
       })
       .catch((error) => {
         console.error(error)
@@ -132,7 +132,6 @@ const ClaudeChatUI = () => {
       isImage: false,
     }
 
-    // Update messages for active chat
     setMessages((prevMessages) => ({
       ...prevMessages,
       [activeChat]: [...(prevMessages[activeChat] || []), userMessage],
@@ -149,7 +148,6 @@ const ClaudeChatUI = () => {
         isImage: false,
       }
 
-      // Add generating message to active chat
       setMessages((prevMessages) => ({
         ...prevMessages,
         [activeChat]: [...(prevMessages[activeChat] || []), generatingMsg],
@@ -174,10 +172,8 @@ const ClaudeChatUI = () => {
       const data = await response.json()
       const imageUrl = data.imageUrl
 
-      // Save the imageUrl to localStorage
       localStorage.setItem("imageUrl", imageUrl)
 
-      // Update the messages with the generated image URL for active chat
       setMessages((prevMessages) => {
         const chatMessages = [...(prevMessages[activeChat] || [])]
         chatMessages[chatMessages.length - 1] = {
@@ -199,7 +195,6 @@ const ClaudeChatUI = () => {
       console.error("Error generating image:", error)
       setError(`Failed to generate image: ${error.message}`)
 
-      // Update the generating message to show error for active chat
       setMessages((prevMessages) => {
         const chatMessages = [...(prevMessages[activeChat] || [])]
         chatMessages[chatMessages.length - 1].text = `Error generating image: ${error.message}`
@@ -227,19 +222,17 @@ const ClaudeChatUI = () => {
     }
   }, [streamingChats, activeChat])
 
-  // Function to stop streaming
   const stopStreamingResponse = () => {
     if (streamController && streamingChats[activeChat]) {
-      streamController.abort() // Safely stop the previous stream
+      streamController.abort()
       setStreamingChats((prev) => ({ ...prev, [activeChat]: false }))
 
-      // Update the message with [Response stopped by user] appended for the active chat only
       setMessages((prevMessages) => {
         const chatMessages = [...(prevMessages[activeChat] || [])]
         const lastMsg = chatMessages[chatMessages.length - 1]
 
         if (lastMsg?.sender === "assistant") {
-          lastMsg.text = partialResponse + " [Response stopped by user]"
+          lastMsg.text = partialResponse + " [response interrupted]"
         }
 
         return {
@@ -250,14 +243,11 @@ const ClaudeChatUI = () => {
     }
   }
 
-  // Decode user token on component mount
   useEffect(() => {
     if (isUserLoggedIn) {
       try {
         const decodedToken = jwtDecode(userToken)
         setUserData(decodedToken)
-        console.log(userData)
-        // console.log("User data:", decodedToken)
       } catch (error) {
         console.error("Error decoding token:", error)
         setUserData(null)
@@ -265,36 +255,31 @@ const ClaudeChatUI = () => {
     }
   }, [isUserLoggedIn, userToken])
 
-  // Fetch chat messages when active chat changes
   useEffect(() => {
     if (activeChat && userData) {
       fetchChatMessages(activeChat)
     }
   }, [activeChat, userData])
 
-  // Fetch user's chats
   useEffect(() => {
     if (isUserLoggedIn && userData) {
       fetchChats()
     }
   }, [isUserLoggedIn, userData, chatlist])
 
-  // Auto-scroll to bottom of chat
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, loadingChats])
 
-  // Auto-focus input field
   useEffect(() => {
-    inputRef.current?.focus() // Focus initially if needed
+    inputRef.current?.focus()
 
     const handleGlobalKeyDown = (e) => {
-      // Prevent new line on Enter key press and handle message send
       if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault() // Prevents new line
-        handleSendMessage(e) // Call message send function
+        e.preventDefault()
+        handleSendMessage(e)
       }
     }
 
@@ -304,7 +289,6 @@ const ClaudeChatUI = () => {
     }
   }, [inputMessage, messages])
 
-  // Fetch chat messages - FIXED
   const fetchChatMessages = async (chatId) => {
     try {
       setChatLoader(true)
@@ -315,7 +299,7 @@ const ClaudeChatUI = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userToken}`, // Add auth token
+          Authorization: `Bearer ${userToken}`,
         },
         body: JSON.stringify({
           chatId,
@@ -332,14 +316,12 @@ const ClaudeChatUI = () => {
 
       console.log("Messages received:", data)
 
-      // Format the messages with proper timestamps
       const formattedMessages = data.messages.map((msg) => ({
         sender: msg.role,
         text: msg.content,
         timestamp: new Date(msg.timestamp || Date.now()),
       }))
 
-      // Store messages by chatId
       setMessages((prevMessages) => ({
         ...prevMessages,
         [chatId]: formattedMessages,
@@ -353,14 +335,13 @@ const ClaudeChatUI = () => {
     }
   }
 
-  // Fetch user's chats - FIXED
   const fetchChats = async () => {
     try {
       const response = await fetch(`${BACKENDURL}/chats`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userToken}`, // Add auth token
+          Authorization: `Bearer ${userToken}`,
         },
         body: JSON.stringify({
           userId: userData.userId,
@@ -373,17 +354,12 @@ const ClaudeChatUI = () => {
         throw new Error(data.message || "Failed to load chats")
       }
 
-      // console.log("Chats received:", data)
-
-      // Check if data.chats exists and is an array
       const chatsArray = Array.isArray(data.chats) ? data.chats : data && Array.isArray(data) ? data : []
 
-      // Sort chats by creation date
       const sortedChats = chatsArray.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
       setChatlist(sortedChats)
 
-      // Set the most recent chat as active if we have chats and no active chat
       if (sortedChats.length > 0 && !activeChat) {
         setActiveChat(sortedChats[0]._id)
       }
@@ -393,7 +369,6 @@ const ClaudeChatUI = () => {
     }
   }
 
-  // Create a new chat
   const handleNewChat = async () => {
     try {
       const response = await fetch(`${BACKENDURL}/chat/new`, {
@@ -411,7 +386,6 @@ const ClaudeChatUI = () => {
         throw new Error(data.message || "Failed to create chat")
       }
 
-      // Create a new empty messages array for this chat
       setMessages((prevMessages) => ({
         ...prevMessages,
         [data.chat._id]: [],
@@ -420,10 +394,8 @@ const ClaudeChatUI = () => {
       setInputMessage("")
       setError(null)
 
-      // Set the new chat as active
       setActiveChat(data.chat._id)
 
-      // Add new chat to the list and refresh chat list
       fetchChats()
     } catch (error) {
       console.error("Error creating new chat:", error)
@@ -436,7 +408,7 @@ const ClaudeChatUI = () => {
     e.preventDefault()
 
     if (streamController) {
-      streamController.abort() // Safely stop the previous stream
+      streamController.abort()
     }
 
     if (!inputMessage.trim() || isLoading) return
@@ -446,19 +418,15 @@ const ClaudeChatUI = () => {
       return
     }
 
-    // Handle based on selected option
     if (selectedOption === "image") {
-      // Generate image if 'image' option is selected
       await generateImage()
     } else {
-      // Regular text message handling
       const userMessage = {
         sender: "user",
         text: inputMessage,
         timestamp: new Date(),
       }
 
-      // Update messages for the active chat
       setMessages((prevMessages) => ({
         ...prevMessages,
         [activeChat]: [...(prevMessages[activeChat] || []), userMessage],
@@ -469,10 +437,10 @@ const ClaudeChatUI = () => {
       setInputMessage("")
       setIsLoading(true)
       setError(null)
-      setPartialResponse("") // Reset partial response
+      setPartialResponse("")
+      setDisplayedText((prev) => ({ ...prev, [activeChat]: "" }))
 
       try {
-        // Create an AbortController to handle stopping the stream
         const controller = new AbortController()
         setStreamController(controller)
         setStreamingChats((prev) => ({ ...prev, [activeChat]: true }))
@@ -492,7 +460,7 @@ const ClaudeChatUI = () => {
             userId: userData.userId,
             chatId: activeChat,
           }),
-          signal: controller.signal, // Add the signal to the fetch request
+          signal: controller.signal,
         })
 
         if (!response.ok) {
@@ -519,9 +487,8 @@ const ClaudeChatUI = () => {
               const json = JSON.parse(line.replace("data: ", "").trim())
               if (json.text) {
                 accumulatedText = json.text
-                setPartialResponse(accumulatedText) // Update partial response
+                setPartialResponse(accumulatedText)
 
-                // Update messages for the active chat only
                 setMessages((prevMessages) => {
                   const chatMessages = [...(prevMessages[activeChat] || [])]
                   const lastMsg = chatMessages[chatMessages.length - 1]
@@ -553,13 +520,11 @@ const ClaudeChatUI = () => {
           })
         }
 
-        // After we have the first AI response, generate a title if this is a new chat
         const currentMessages = currentChatMessages.length + 1
         if (currentMessages === 2 && activeChat) {
           setTimeout(() => generateChatTitle(activeChat), 500)
         }
       } catch (err) {
-        // Check if this is an abort error (user stopped the stream)
         if (err.name === "AbortError") {
           console.log("Response streaming was aborted by user")
         } else {
@@ -575,6 +540,26 @@ const ClaudeChatUI = () => {
     }
   }
 
+  useEffect(() => {
+    if (partialResponse && streamingChats[activeChat]) {
+      let currentIndex = displayedText[activeChat]?.length || 0
+      const fullText = partialResponse
+
+      const typeCharacter = () => {
+        if (currentIndex < fullText.length) {
+          setDisplayedText((prev) => ({
+            ...prev,
+            [activeChat]: fullText.slice(0, currentIndex + 1),
+          }))
+          currentIndex += 1
+          setTimeout(typeCharacter, 5)
+        }
+      }
+
+      typeCharacter()
+    }
+  }, [partialResponse, streamingChats, activeChat])
+
   const handleChatClick = (chatId) => {
     setActiveChat(chatId)
   }
@@ -582,7 +567,6 @@ const ClaudeChatUI = () => {
   const [user, setUser] = useState(null)
 
   const fetchUser = async () => {
-    // console.log(userData.userId)
     try {
       const response = await axios.post(`${BACKENDURL}/fetch/user`, {
         id: userData.userId,
@@ -592,7 +576,6 @@ const ClaudeChatUI = () => {
         setUser(response.data)
       }
     } catch (error) {
-      // console.error("Error fetching user:", error);
     }
   }
 
@@ -601,14 +584,9 @@ const ClaudeChatUI = () => {
   })
 
   const handleLogOut = () => {
-    // Remove token from localStorage or cookies
-    Cookies.remove("authToken") // If stored in cookies
-
-    // Redirect to login or home page
+    Cookies.remove("authToken")
     navigate("/auth")
     toast.success("Logged out sucessfull")
-
-    // Optionally clear any app state (e.g., context or Redux)
   }
 
   useEffect(() => {
@@ -621,14 +599,14 @@ const ClaudeChatUI = () => {
     messageElements.forEach((el, index) => {
       setTimeout(() => {
         el.classList.add("visible")
-      }, index * 100) // Delay each message by 100ms
+      }, index * 100)
     })
   }, [messages])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowMobileOptions(false) // 👈 Close dropdown
+        setShowMobileOptions(false)
       }
     }
 
@@ -643,10 +621,21 @@ const ClaudeChatUI = () => {
     }
   }, [showMobileOptions])
 
+  const HighlightedBox = ({ children }) => (
+    <div
+      style={{
+        padding: "5px",
+        borderRadius: "8px",
+        margin: "10px 0",
+      }}
+    >
+      {children}
+    </div>
+  )
+
   return (
     <div className="container-fluid p-0">
       <div className="row g-0">
-        {/* Mobile view */}
         <div
           className={`mobile-sidebar-overlay ${isSidebarOpen ? "open" : ""} d-md-none`}
           onClick={() => setSidebarOpen(false)}
@@ -806,13 +795,11 @@ const ClaudeChatUI = () => {
                 </Link>
               </div>
             </div>
-            {/* Your original sidebar content here (like what you sent above) */}
           </div>
         </div>
 
-        {/* Desktop */}
         <div
-          className="col-3 sidebar d-none d-md-block"
+          className="col-3 sidebar d-none d-md-block | sidebar"
           style={{
             backgroundColor: "#171717",
             color: "white",
@@ -966,9 +953,7 @@ const ClaudeChatUI = () => {
           </div>
         </div>
 
-        {/* Main Chat Content */}
         <div className="col-9 main-div" style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-          {/* Header */}
           <div
             className="chat-header d-flex justify-content-between align-items-center"
             style={{ padding: "15px", backgroundColor: "#222222" }}
@@ -1006,7 +991,6 @@ const ClaudeChatUI = () => {
               </h1>
             </div>
             <div className="form-group mb-0 d-flex align-items-center gap-3">
-              {/* Model Selector */}
               <select
                 className="form-control"
                 value={model}
@@ -1017,12 +1001,9 @@ const ClaudeChatUI = () => {
                   color: "white",
                 }}
               >
-                {/* <option value="numax">Numax</option>
-                <option value="codellama:13b">Codellama</option> */}
                 <option value="numax">Numax</option>
               </select>
 
-              {/* Profile Dropdown */}
               <div className="dropdown">
                 {!user?.profile ? (
                   <ThreeDots
@@ -1042,7 +1023,7 @@ const ClaudeChatUI = () => {
                     data-bs-toggle="dropdown"
                     aria-expanded="false"
                     style={{
-                      width: "55px",
+                      width: "60px",
                       height: "35px",
                       borderRadius: "50%",
                       objectFit: "cover",
@@ -1082,8 +1063,72 @@ const ClaudeChatUI = () => {
             <div
               className="card-body chat-content customer-scrollbar"
               ref={chatContainerRef}
-              style={{ height: "591px", overflowY: "auto", width: "100%" }}
+              style={{
+                height: "591px",
+                overflowY: "auto",
+                width: "100%",
+                overflowX: "auto",
+              }}
             >
+              <style>
+                {`
+                  .customer-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                    height: 6px;
+                  }
+                  .customer-scrollbar::-webkit-scrollbar-track {
+                    background: #444;
+                    border-radius: 3px;
+                  }
+                  .customer-scrollbar::-webkit-scrollbar-thumb {
+                    background: #cccccc;
+                    border-radius: 3px;
+                  }
+                  .customer-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #aaaaaa;
+                  }
+                  .shining-text {
+                    position: relative;
+                    font-family: sans-serif;
+                    overflow: hidden;
+                    background: linear-gradient(90deg, #000, #fff, #000);
+                    background-repeat: no-repeat;
+                    background-size: 80%;
+                    animation: shine 1.9s linear infinite;
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: rgba(255, 255, 255, 0);
+                    color: white;
+                    margin-top: 10px;
+                    padding: 0px 20px;
+                    font-style: italic;
+                  }
+                  @keyframes shine {
+                    0% {
+                      background-position: -500%;
+                    }
+                    100% {
+                      background-position: 500%;
+                    }
+                  }
+                  @media (max-width: 768px) {
+                    .table-responsive-wrapper {
+                      display: block;
+                      overflow-x: auto;
+                      -webkit-overflow-scrolling: touch;
+                    }
+                    .table-responsive-wrapper table {
+                      max-width: 100%;
+                      width: auto;
+                      min-width: 100%;
+                    }
+                    .table-responsive-wrapper th,
+                    .table-responsive-wrapper td {
+                      white-space: nowrap;
+                      min-width: 100px;
+                    }
+                  }
+                `}
+              </style>
               {chatLoader ? (
                 <div className="chat-skeleton-container">
                   {[1, 2, 3, 4, 5, 6].map((item, i) => (
@@ -1091,8 +1136,8 @@ const ClaudeChatUI = () => {
                       <div
                         className="bubble"
                         style={{
-                          height: "60px", // Fixed height
-                          width: "60%", // Fixed width
+                          height: "60px",
+                          width: "60%",
                         }}
                       ></div>
                     </div>
@@ -1106,7 +1151,7 @@ const ClaudeChatUI = () => {
                     <div
                       className="card p-3 shadow-sm border-0 model-type"
                       style={{
-                        width: "50%",
+                        width: "70%",
                         background: "#313031",
                         color: "white",
                         borderRadius: "20px",
@@ -1136,103 +1181,380 @@ const ClaudeChatUI = () => {
                 </div>
               ) : (
                 messages[activeChat].map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`message ${msg.sender === "user" ? "user-message" : "ai-message"}`}
-                    style={{
-                      textAlign: msg.sender === "user" ? "right" : "left",
-                      marginBottom: "15px",
-                    }}
-                  >
+                  <div key={index}>
                     <div
-                      className="response"
+                      className={`message ${msg.sender === "user" ? "user-message" : "ai-message"}`}
                       style={{
-                        display: "inline-block",
-                        padding: "10px 15px",
-                        borderRadius: "15px",
-                        maxWidth: "70%",
-                        backgroundColor: msg.sender === "user" ? "#2E2F2E" : "",
-                        color: "white",
+                        textAlign: msg.sender === "user" ? "right" : "left",
+                        marginBottom: "10px",
                       }}
                     >
-                      {msg.isImage ? (
-                        <img
-                          src={msg.imageUrl || "/placeholder.svg"}
-                          alt="Generated content"
-                          style={{ maxWidth: "100%", borderRadius: "10px" }}
-                        />
-                      ) : (
-                        <>
-                          <ReactMarkdown
-                            remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
-                            components={{
-                              code: ({ inline, className, children }) => {
-                                const language = className?.replace("language-", "")
-                                return inline ? (
-                                  <code className="bg-gray-200 p-1 rounded">{children}</code>
-                                ) : (
-                                  <div style={{ position: "relative" }}>
-                                    <button
-                                      onClick={() => handleCopy(String(children))}
+                      <div
+                        className="response"
+                        style={{
+                          display: "inline-block",
+                          padding: msg.sender === "user" ? "3px 8px" : "1px 15px",
+                          borderRadius: "15px",
+                          maxWidth: msg.sender === "user" ? "45%" : "65%",
+                          backgroundColor: msg.sender === "user" ? "#2E2F2E" : "",
+                          color: "white",
+                        }}
+                      >
+                        {msg.isImage ? (
+                          <img
+                            src={msg.imageUrl || "/placeholder.svg"}
+                            alt="Generated content"
+                            style={{ maxWidth: "100%", borderRadius: "10px" }}
+                          />
+                        ) : (
+                          <>
+                            <Markdown
+                              remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
+                              components={{
+                                code: ({ inline, className, children }) => {
+                                  const language = className?.replace("language-", "")
+                                  return inline ? (
+                                    <code
                                       style={{
-                                        position: "absolute",
-                                        top: "10px",
-                                        right: "10px",
-                                        background: "#333",
-                                        color: "white",
-                                        border: "none",
-                                        padding: "5px 10px",
-                                        borderRadius: "5px",
-                                        cursor: "pointer",
+                                        background: "#2a2a2a",
+                                        padding: "3px 6px",
+                                        borderRadius: "4px",
+                                        color: "#ffcccb",
+                                        border: "1px solid #444",
+                                        fontFamily: "'Fira Code', monospace",
                                         fontSize: "14px",
                                       }}
                                     >
-                                      Copy
-                                    </button>
-                                    <SyntaxHighlighter language={language} style={dracula}>
                                       {children}
-                                    </SyntaxHighlighter>
-                                  </div>
-                                )
-                              },
-                            }}
-                          >
-                            {String(msg.text || "").trim()}
-                          </ReactMarkdown>
-
-                          {/* Action buttons: only show for AI messages */}
-                          {msg.sender !== "user" && (
-                            <div className="d-flex justify-content-start mt-2 gap-2">
-                              <button className="btn btn-sm btn-outline-light" onClick={() => handleCopy(msg.text)}>
-                                <i className="bi bi-clipboard"></i> <Copy />
-                              </button>
-
-                              <button
-                                className={`btn btn-sm ${feedback[index] === "like" ? "btn-success" : "btn-outline-success"}`}
-                                onClick={() => handleLike(index)}
-                                disabled={feedback[index] !== undefined}
-                              >
-                                <i className="bi bi-hand-thumbs-up"></i> <ThumbsUp />
-                              </button>
-
-                              <button
-                                className={`btn btn-sm ${feedback[index] === "dislike" ? "btn-danger" : "btn-outline-danger"}`}
-                                onClick={() => handleDislike(index)}
-                                disabled={feedback[index] !== undefined}
-                              >
-                                <i className="bi bi-hand-thumbs-down"></i> <ThumbsDown />
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      )}
+                                    </code>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        position: "relative",
+                                        margin: "15px 0",
+                                        background: "#1e1e1e",
+                                        borderRadius: "8px",
+                                        padding: "15px",
+                                        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                                      }}
+                                    >
+                                      <button
+                                        onClick={() => handleCopy(String(children))}
+                                        style={{
+                                          position: "absolute",
+                                          top: "10px",
+                                          right: "10px",
+                                          background: "#444",
+                                          color: "white",
+                                          border: "none",
+                                          padding: "5px 10px",
+                                          borderRadius: "5px",
+                                          cursor: "pointer",
+                                          fontSize: "14px",
+                                          transition: "background 0.2s",
+                                        }}
+                                        onMouseEnter={(e) => (e.target.style.background = "#555")}
+                                        onMouseLeave={(e) => (e.target.style.background = "#444")}
+                                      >
+                                        Copy
+                                      </button>
+                                      <SyntaxHighlighter
+                                        language={language}
+                                        style={dracula}
+                                        customStyle={{ margin: 0, background: "transparent", fontSize: "14px" }}
+                                      >
+                                        {children}
+                                      </SyntaxHighlighter>
+                                    </div>
+                                  )
+                                },
+                                h1: ({ children }) => (
+                                  <HighlightedBox>
+                                    <h1
+                                      style={{
+                                        fontSize: "2em",
+                                        margin: "0.8em 0",
+                                        color: "#ffffff",
+                                        borderBottom: "2px solid #66b3ff",
+                                        paddingBottom: "8px",
+                                        fontWeight: "bold",
+                                      }}
+                                    >
+                                      {children}
+                                    </h1>
+                                  </HighlightedBox>
+                                ),
+                                h2: ({ children }) => (
+                                  <HighlightedBox>
+                                    <h2
+                                      style={{
+                                        fontSize: "1.6em",
+                                        margin: "0.7em 0",
+                                        color: "#e6e6e6",
+                                        borderBottom: "1px solid #555",
+                                        paddingBottom: "6px",
+                                        fontWeight: "600",
+                                      }}
+                                    >
+                                      {children}
+                                    </h2>
+                                  </HighlightedBox>
+                                ),
+                                h3: ({ children }) => (
+                                  <HighlightedBox>
+                                    <h3
+                                      style={{
+                                        fontSize: "1.3em",
+                                        margin: "0.6em 0",
+                                        color: "#d4d4d4",
+                                        fontWeight: "500",
+                                      }}
+                                    >
+                                      {children}
+                                    </h3>
+                                  </HighlightedBox>
+                                ),
+                                p: ({ children }) => (
+                                  <HighlightedBox>
+                                    <p
+                                      style={{
+                                        margin: "0.8em 0",
+                                        lineHeight: "1.8",
+                                        color: "#d4d4d4",
+                                        letterSpacing: "0.02em",
+                                      }}
+                                    >
+                                      {children}
+                                    </p>
+                                  </HighlightedBox>
+                                ),
+                                ul: ({ children }) => (
+                                  <HighlightedBox>
+                                    <ul
+                                      style={{
+                                        margin: "0.8em 0",
+                                        paddingLeft: "25px",
+                                        color: "#d4d4d4",
+                                        listStyleType: "none",
+                                      }}
+                                    >
+                                      {children}
+                                    </ul>
+                                  </HighlightedBox>
+                                ),
+                                ol: ({ children }) => (
+                                  <HighlightedBox>
+                                    <ol
+                                      style={{
+                                        margin: "0.8em 0",
+                                        paddingLeft: "25px",
+                                        color: "#d4d4d4",
+                                        listStyleType: "decimal",
+                                      }}
+                                    >
+                                      <style>
+                                        {`
+                                          ol li::marker {
+                                            color: #66b3ff;
+                                            fontWeight: 500;
+                                          }
+                                        `}
+                                      </style>
+                                      {children}
+                                    </ol>
+                                  </HighlightedBox>
+                                ),
+                                li: ({ ordered, children }) => (
+                                  <li
+                                    style={{
+                                      margin: "0.5em 0",
+                                      color: "#d4d4d4",
+                                      position: "relative",
+                                      paddingLeft: "20px",
+                                    }}
+                                  >
+                                    {!ordered && (
+                                      <span
+                                        style={{
+                                          position: "absolute",
+                                          left: "-20px",
+                                          top: "-8px",
+                                          color: "#ffffff",
+                                        }}
+                                      >
+                                        <Dot size={40}/>
+                                      </span>
+                                    )}
+                                    {children}
+                                  </li>
+                                ),
+                                a: ({ href, children }) => (
+                                  <HighlightedBox>
+                                    <a
+                                      href={href}
+                                      style={{
+                                        color: "#66b3ff",
+                                        textDecoration: "none",
+                                        position: "relative",
+                                        transition: "color 0.2s",
+                                      }}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onMouseEnter={(e) => {
+                                        e.target.style.color = "#99ccff"
+                                        e.target.style.textDecoration = "underline"
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.target.style.color = "#66b3ff"
+                                        e.target.style.textDecoration = "none"
+                                      }}
+                                    >
+                                      {children}
+                                      <span style={{ marginLeft: "5px", fontSize: "0.9em" }}>↗</span>
+                                    </a>
+                                  </HighlightedBox>
+                                ),
+                                blockquote: ({ children }) => (
+                                  <HighlightedBox>
+                                    <blockquote
+                                      style={{
+                                        borderLeft: "4px solid #66b3ff",
+                                        padding: "10px 15px",
+                                        margin: "1em 0",
+                                        color: "#d4d4d4",
+                                        fontStyle: "italic",
+                                        borderRadius: "0 8px 8px 0",
+                                      }}
+                                    >
+                                      {children}
+                                    </blockquote>
+                                  </HighlightedBox>
+                                ),
+                                table: ({ children }) => (
+                                  <HighlightedBox>
+                                    <div className="table-responsive-wrapper">
+                                      <table
+                                        style={{
+                                          width: "100%",
+                                          borderCollapse: "collapse",
+                                          margin: "1em 0",
+                                          background: "#2a2a2a",
+                                          borderRadius: "8px",
+                                          overflow: "hidden",
+                                        }}
+                                      >
+                                        {children}
+                                      </table>
+                                    </div>
+                                  </HighlightedBox>
+                                ),
+                                thead: ({ children }) => (
+                                  <thead style={{ background: "#3a3b3c" }}>{children}</thead>
+                                ),
+                                tbody: ({ children }) => (
+                                  <tbody>{children}</tbody>
+                                ),
+                                tr: ({ children }) => (
+                                  <tr
+                                    style={{
+                                      background: "transparent",
+                                      "&:nth-child(even)": { background: "#333" },
+                                    }}
+                                  >
+                                    {children}
+                                  </tr>
+                                ),
+                                th: ({ children }) => (
+                                  <th
+                                    style={{
+                                      padding: "12px",
+                                      textAlign: "left",
+                                      color: "#ffffff",
+                                      borderBottom: "1px solid #444",
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    {children}
+                                  </th>
+                                ),
+                                td: ({ children }) => (
+                                  <td
+                                    style={{
+                                      padding: "12px",
+                                      color: "#d4d4d4",
+                                      borderBottom: "1px solid #444",
+                                    }}
+                                  >
+                                    {children}
+                                  </td>
+                                ),
+                                strong: ({ children }) => (
+                                  <strong
+                                    style={{
+                                      fontWeight: "700",
+                                      color: "#ffffff",
+                                    }}
+                                  >
+                                    {children}
+                                  </strong>
+                                ),
+                                em: ({ children }) => (
+                                  <em
+                                    style={{
+                                      fontStyle: "italic",
+                                      color: "#cccccc",
+                                    }}
+                                  >
+                                    {children}
+                                  </em>
+                                ),
+                                hr: () => (
+                                  <HighlightedBox>
+                                    <hr
+                                      style={{
+                                        border: "none",
+                                        height: "1px",
+                                        background: "linear-gradient(to right, #66b3ff, #333)",
+                                        margin: "1.5em 0",
+                                      }}
+                                    />
+                                  </HighlightedBox>
+                                ),
+                              }}
+                            >
+                              {msg.sender === "assistant" &&
+                              index === messages[activeChat].length - 1 &&
+                              streamingChats[activeChat]
+                                ? displayedText[activeChat] || ""
+                                : String(msg.text || "").trim()}
+                            </Markdown>
+                          </>
+                        )}
+                      </div>
+                      <div className="timestamp text-white small">{msg.timestamp.toLocaleTimeString()}</div>
                     </div>
-                    <div className="timestamp text-white small">{msg.timestamp.toLocaleTimeString()}</div>
+
+                    {msg.sender === "user" &&
+                      index === messages[activeChat].length - 1 &&
+                      loadingChats[activeChat] &&
+                      selectedOption === "text" && (
+                        <div
+                          className="my-2"
+                          style={{
+                            textAlign: "left",
+                            marginBottom: "15px",
+                          }}
+                        >
+                          <p className="shining-text">
+                            Hmm let me think...
+                          </p>
+                        </div>
+                      )}
                   </div>
                 ))
               )}
 
-              {imageLoader && selectedOption === "image" ? (
+              {imageLoader && selectedOption === "image" && (
                 <div className="my-4">
                   <p
                     style={{
@@ -1244,19 +1566,7 @@ const ClaudeChatUI = () => {
                     Image is generating...
                   </p>
                 </div>
-              ) : loadingChats[activeChat] && selectedOption === "text" ? (
-                <div className="my-4">
-                  <p
-                    style={{
-                      color: "white",
-                      marginTop: "10px",
-                      padding: "0px 20px",
-                    }}
-                  >
-                    AI is thinking...
-                  </p>
-                </div>
-              ) : null}
+              )}
 
               {error && (
                 <div className="alert alert-danger mt-3" role="alert">
@@ -1265,46 +1575,71 @@ const ClaudeChatUI = () => {
               )}
             </div>
 
-            <div className="card-footer" style={{ border: "none" }}>
+            <div className="card-footer" style={{ border: "none", background: "#222222", padding: "15px" }}>
               <form onSubmit={handleSendMessage} className="d-flex align-items-center">
-                <div className="input-group">
-                  <div
-                    className="d-flex align-items-center w-100 px-2 py-1"
-                    style={{ background: "#313031", borderRadius: "10px" }}
-                  >
-                    <div className="d-flex me-auto" style={{ width: "100%" }}>
-                      <textarea
-                        ref={inputRef}
-                        rows={2}
-                        className="form-control border-0 bg-transparent shadow-none input-textarea"
-                        placeholder="Ask anything"
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        style={{
-                          fontSize: "16px",
-                          color: "white",
-                          resize: "none",
-                        }}
-                      />
-                    </div>
+                <div
+                  className="input-group"
+                  style={{
+                    background: "#313031",
+                    borderRadius: "12px",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+                    padding: "8px",
+                    transition: "box-shadow 0.2s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)")}
+                >
+                  <div className="d-flex align-items-center w-100">
+                    <textarea
+                      ref={inputRef}
+                      rows={1}
+                      className="form-control border-0 bg-transparent shadow-none input-textarea"
+                      placeholder="Ask anything..."
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      style={{
+                        fontSize: "16px",
+                        color: "white",
+                        resize: "none",
+                        minHeight: "40px",
+                        maxHeight: "120px",
+                        background: "transparent",
+                        borderRadius: "8px",
+                        padding: "10px 15px",
+                        transition: "background-color 0.2s",
+                      }}
+                      onFocus={(e) => (e.target.style.backgroundColor = "#3a3b3c")}
+                      onBlur={(e) => (e.target.style.backgroundColor = "transparent")}
+                      onInput={(e) => {
+                        e.target.style.height = "auto"
+                        e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
+                      }}
+                    />
 
-                    {/* Button Group - Desktop View */}
-                    <div className="d-none d-md-flex align-items-center">
+                    <div className="d-none d-md-flex align-items-center gap-2">
                       <select
                         className="form-select form-select-sm"
                         aria-label="Options"
                         style={{
-                          width: "auto",
-                          height: "38px",
                           backgroundColor: "#171717",
-                          borderRadius: "50px",
-                          paddingLeft: "10px",
-                          paddingRight: "28px",
+                          border: "1px solid #3a3b3c",
                           color: "white",
-                          border: "none",
+                          borderRadius: "8px",
+                          padding: "6px 12px",
+                          fontSize: "14px",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
                         }}
                         value={selectedOption}
                         onChange={handleOptionChange}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = "#3a3b3c"
+                          e.target.style.borderColor = "#ffffff"
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = "#171717"
+                          e.target.style.borderColor = "#3a3b3c"
+                        }}
                       >
                         <option value="text">Text</option>
                         <option value="image">Generate Image</option>
@@ -1312,27 +1647,36 @@ const ClaudeChatUI = () => {
 
                       <button
                         type="button"
-                        className="btn btn-sm rounded-circle ms-1"
+                        className="btn btn-sm rounded-circle"
+                        onClick={streamingChats[activeChat] ? stopStreamingResponse : handleSendMessage}
+                        disabled={streamingChats[activeChat] ? false : !inputMessage.trim() || isLoading}
                         style={{
-                          width: "42px",
-                          height: "42px",
-                          backgroundColor: "#171717",
-                          color: "white",
+                          width: "40px",
+                          height: "40px",
+                          backgroundColor: streamingChats[activeChat] || inputMessage.trim() ? "#171717" : "#2a2a2a",
+                          color: streamingChats[activeChat] || inputMessage.trim() ? "white" : "#666",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "background-color 0.2s",
+                          cursor: (streamingChats[activeChat] || inputMessage.trim()) && !isLoading ? "pointer" : "pointer",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (streamingChats[activeChat] || (inputMessage.trim() && !isLoading)) {
+                            e.target.style.backgroundColor = "#3a3b3c"
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (streamingChats[activeChat] || inputMessage.trim()) {
+                            e.target.style.backgroundColor = "#171717"
+                          }
                         }}
                       >
-                        <i className="bi bi-mic-fill text-white"></i>
+                        {streamingChats[activeChat] ? <Square size={20} /> : <ArrowUp size={20} />}
                       </button>
                     </div>
 
-                    {/* Mobile View - Dropdown Toggle */}
                     <div className="d-flex d-md-none align-items-center position-relative">
-                      <button
-                        className="btn btn-dark d-flex align-items-center justify-content-center"
-                        onClick={handleSendMessage}
-                        style={{ fontSize: "16px", background: "#171717" }}
-                      >
-                        <i className="bi bi-send-fill me-2"></i>
-                      </button>
                       <button
                         type="button"
                         className="btn btn-sm rounded-circle"
@@ -1346,10 +1690,39 @@ const ClaudeChatUI = () => {
                       >
                         <i className="bi bi-three-dots-vertical"></i>
                       </button>
-                      {/* Dropdown menu */}
+                      <button
+                        type="button"
+                        className="btn btn-sm rounded-circle"
+                        onClick={streamingChats[activeChat] ? stopStreamingResponse : handleSendMessage}
+                        disabled={streamingChats[activeChat] ? false : !inputMessage.trim() || isLoading}
+                        style={{
+                          width: "40px",
+                          height: "40px",
+                          backgroundColor: streamingChats[activeChat] || inputMessage.trim() ? "#171717" : "#2a2a2a",
+                          color: streamingChats[activeChat] || inputMessage.trim() ? "white" : "#666",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "background-color 0.2s",
+                          cursor: (streamingChats[activeChat] || inputMessage.trim()) && !isLoading ? "pointer" : "pointer",
+                          marginLeft: "5px",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (streamingChats[activeChat] || (inputMessage.trim() && !isLoading)) {
+                            e.target.style.backgroundColor = "#3a3b3c"
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (streamingChats[activeChat] || inputMessage.trim()) {
+                            e.target.style.backgroundColor = "#171717"
+                          }
+                        }}
+                      >
+                        {streamingChats[activeChat] ? <Square size={20} /> : <ArrowUp size={20} />}
+                      </button>
                       {showMobileOptions && (
                         <div
-                          className="position-absolute end-0 mt-2 p-2 rounded shadow"
+                          className="position-absolute end-0 mt-2 p-2 rounded shadow | mobile-options-dropdown"
                           style={{ backgroundColor: "#171717", zIndex: 1000 }}
                           ref={dropdownRef}
                         >
@@ -1358,7 +1731,7 @@ const ClaudeChatUI = () => {
                             value={selectedOption}
                             onChange={handleOptionChange}
                             style={{
-                              backgroundColor: "#2a2a2a",
+                              background: "#2a2a2a",
                               color: "white",
                               border: "none",
                             }}

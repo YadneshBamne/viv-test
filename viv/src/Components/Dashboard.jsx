@@ -1194,7 +1194,7 @@ const Dashboard = () => {
                   }}
                   onClick={() => setShowEndpointModal(true)}
                 >
-                  <Plus size={16} className="me-2" />
+                  
                   Create Endpoint
                 </Button>
               </div>
@@ -1283,8 +1283,7 @@ const Dashboard = () => {
               <div className="card-body p-0">
                 {tools.length === 0 ? (
                   <div className="text-center py-5">
-                    <Database size={48} className="text-muted mb-3" />
-                    <p className="text-white-50">No endpoints found. Create your first endpoint to get started.</p>
+                    <p className="text-white-50 p-2">No endpoints found. Create your first endpoint to get started.</p>
                     <Button
                       className="mt-2"
                       onClick={() => setShowEndpointModal(true)}
@@ -1294,8 +1293,9 @@ const Dashboard = () => {
                         borderRadius: "6px",
                       }}
                     >
-                      <Plus size={16} className="me-2" />
-                      Create Endpoint
+                      
+                      Create Endpoint 
+                      
                     </Button>
                   </div>
                 ) : (
