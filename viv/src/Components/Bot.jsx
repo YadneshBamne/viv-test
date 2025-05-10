@@ -26,11 +26,19 @@ import {
   HomeIcon,
   LayoutDashboardIcon,
   SidebarIcon,
+  SidebarClose,
+  SidebarOpen,
 } from "lucide-react";
 
 const ClaudeChatUI = () => {
   const navigate = useNavigate();
   const [selected, setSelected] = useState("Precise");
+  const [notification, setNotification] = useState({
+    visible: false,
+    message: "",
+    type: "",
+  });
+  const [feedback, setFeedback] = useState({});
   const [messages, setMessages] = useState({});
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -56,7 +64,6 @@ const ClaudeChatUI = () => {
   const [imageLoader, setImageLoader] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const activeTitle = chatlist.find((c) => c._id === activeChat)?.title;
-  const [feedback, setFeedback] = useState({});
   const [title, setTitle] = useState();
   const [chat, setChat] = useState(null);
   const [onChatUpdate, setOnChatUpdate] = useState(null);
@@ -64,15 +71,45 @@ const ClaudeChatUI = () => {
   const [displayedText, setDisplayedText] = useState({});
   const [isSearchCentered, setIsSearchCentered] = useState(true);
 
+  const showNotification = (message, type) => {
+    setNotification({ visible: true, message, type });
+    setTimeout(() => {
+      setNotification({ visible: false, message: "", type: "" });
+    }, 2000);
+  };
+
   const handleLike = (index) => {
-    alert("Thanks for your response!");
-    setFeedback((prev) => ({ ...prev, [index]: "like" }));
+    setFeedback((prev) => ({
+      ...prev,
+      [activeChat]: {
+        ...(prev[activeChat] || {}),
+        [index]: "like",
+      },
+    }));
+    showNotification("Thanks for your response", "like");
   };
 
   const handleDislike = (index) => {
-    alert("Thanks for your response!");
-    setFeedback((prev) => ({ ...prev, [index]: "dislike" }));
+    setFeedback((prev) => ({
+      ...prev,
+      [activeChat]: {
+        ...(prev[activeChat] || {}),
+        [index]: "dislike",
+      },
+    }));
+    showNotification("Disliked", "dislike");
   };
+
+  useEffect(() => {
+    // If you want to reset feedback for a new chat, you can do it here
+    // This is optional and depends on whether you want feedback to persist across sessions
+    if (!feedback[activeChat]) {
+      setFeedback((prev) => ({
+        ...prev,
+        [activeChat]: {},
+      }));
+    }
+  }, [activeChat]);
 
   function editChat(chatId) {
     const newTitle = prompt("Enter new chat title:");
@@ -120,14 +157,13 @@ const ClaudeChatUI = () => {
   };
 
   const handleCopy = (text) => {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        alert("Copied to clipboard!");
-      })
-      .catch((err) => {
-        alert("Failed to copy text: ", err);
-      });
+    navigator.clipboard.writeText(text);
+    // .then(() => {
+    //   alert("Copied to clipboard!");
+    // })
+    // .catch((err) => {
+    //   alert("Failed to copy text: ", err);
+    // });
   };
 
   const handleOptionChange = (e) => {
@@ -665,6 +701,13 @@ const ClaudeChatUI = () => {
     };
   }, [showMobileOptions, isSidebarOpen]);
 
+  useEffect(() => {
+    document.body.style.overflow = isSidebarOpen ? "hidden" : "auto";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [isSidebarOpen]);
+
   const HighlightedBox = ({ children }) => (
     <div
       style={{
@@ -690,8 +733,11 @@ const ClaudeChatUI = () => {
             width: "100%",
             height: "100%",
             zIndex: 1049,
-            display: isSidebarOpen ? "block" : "none",
+            opacity: isSidebarOpen ? 1 : 0,
+            visibility: isSidebarOpen ? "visible" : "hidden",
+            transition: "opacity 0.3s ease-in-out, visibility 0.3s ease-in-out",
           }}
+          onClick={() => setSidebarOpen(false)}
         >
           <div
             className="mobile-sidebar"
@@ -699,15 +745,18 @@ const ClaudeChatUI = () => {
             style={{
               backgroundColor: "#171717",
               color: "white",
-              width: "300px",
+              width: "min(300px, 75vw)", // Responsive width: max 300px or 75% of viewport
               height: "100vh",
               position: "fixed",
               top: 0,
               left: 0,
               zIndex: 1050,
               overflowY: "auto",
-              transition: "transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)",
               transform: isSidebarOpen ? "translateX(0)" : "translateX(-100%)",
+              transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              boxShadow: isSidebarOpen
+                ? "2px 0 8px rgba(0, 0, 0, 0.3)"
+                : "none",
             }}
           >
             <div
@@ -720,26 +769,36 @@ const ClaudeChatUI = () => {
                 flexDirection: "column",
               }}
             >
-              <div className="p-3 d-flex">
-                <div className="bg-dark p-2 rounded me-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    fill="white"
-                    className="bi bi-chat-square-text"
-                    viewBox="0 0 16 16"
-                  >
-                    <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12z" />
-                    <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="fw-bold">Chat Threads</div>
-                  <div className="text small">
-                    {chatlist.length} conversations
+              {/* Sidebar Header with Close Button */}
+              <div className="p-3 d-flex justify-content-between align-items-center">
+                <div className="d-flex align-items-center">
+                  <div className="bg-dark p-2 rounded me-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      fill="white"
+                      className="bi bi-chat-square-text"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2.5a2 2 0 0 0-1.6.8L8 14.333 6.1 11.8a2 2 0 0 0-1.6-.8H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12z" />
+                      <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zM3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6zm0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="fw-bold">Chat Threads</div>
+                    <div className="text small">
+                      {chatlist.length} conversations
+                    </div>
                   </div>
                 </div>
+                <button
+                  className="btn text-white"
+                  onClick={() => setSidebarOpen(false)}
+                  style={{ padding: "5px" }}
+                >
+                  <SidebarClose size={25} />
+                </button>
               </div>
 
               <div
@@ -842,7 +901,7 @@ const ClaudeChatUI = () => {
                   gap: "10px",
                   position: "fixed",
                   bottom: 0,
-                  width: "300px",
+                  width: "min(300px, 75vw)", // Match sidebar width
                   backgroundColor: "#171717",
                   zIndex: 1,
                 }}
@@ -874,13 +933,13 @@ const ClaudeChatUI = () => {
                 <div className="d-flex justify-content-between p-3">
                   <Link to="/">
                     <button className="btn btn-sm text-muted">
-                      <HomeIcon color="white"/>
+                      <HomeIcon color="white" />
                     </button>
                   </Link>
 
                   <Link to="/dashboard">
                     <button className="btn btn-sm text-muted">
-                    <LayoutDashboardIcon color="white"/>
+                      <LayoutDashboardIcon color="white" />
                     </button>
                   </Link>
                 </div>
@@ -901,8 +960,9 @@ const ClaudeChatUI = () => {
               <button
                 className="btn text-white"
                 onClick={() => setSidebarOpen(true)}
+                style={{marginRight: "5px" }}
               >
-                <SidebarIcon size={24} />
+                <SidebarOpen size={25} />
               </button>
               {/* <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -946,7 +1006,6 @@ const ClaudeChatUI = () => {
                     aria-expanded="false"
                     style={{
                       width: "40px",
-                      height: "35px",
                       borderRadius: "50%",
                       objectFit: "cover",
                       border: "2px solid #ccc",
@@ -1130,6 +1189,7 @@ const ClaudeChatUI = () => {
                       style={{
                         textAlign: msg.sender === "user" ? "right" : "left",
                         marginBottom: "20px",
+                        marginTop: "20px",
                       }}
                     >
                       <div
@@ -1159,10 +1219,9 @@ const ClaudeChatUI = () => {
                               ]}
                               components={{
                                 code: ({ inline, className, children }) => {
-                                  const language = className?.replace(
-                                    "language-",
-                                    ""
-                                  );
+                                  const language =
+                                    className?.replace("language-", "") ||
+                                    "text";
                                   return inline ? (
                                     <code
                                       style={{
@@ -1184,47 +1243,63 @@ const ClaudeChatUI = () => {
                                         margin: "15px 0",
                                         background: "#1e1e1e",
                                         borderRadius: "8px",
-                                        padding: "15px",
                                         boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
                                       }}
                                     >
-                                      <button
-                                        onClick={() =>
-                                          handleCopy(String(children))
-                                        }
+                                      <div
                                         style={{
-                                          position: "absolute",
-                                          top: "10px",
-                                          right: "10px",
-                                          background: "#444",
-                                          color: "white",
-                                          border: "none",
-                                          padding: "5px 10px",
-                                          borderRadius: "5px",
-                                          cursor: "pointer",
+                                          background: "#2a2a2a",
+                                          padding: "8px 15px",
+                                          borderTopLeftRadius: "8px",
+                                          borderTopRightRadius: "8px",
+                                          color: "#ffffff",
                                           fontSize: "14px",
-                                          transition: "background 0.2s",
-                                        }}
-                                        onMouseEnter={(e) =>
-                                          (e.target.style.background = "#555")
-                                        }
-                                        onMouseLeave={(e) =>
-                                          (e.target.style.background = "#444")
-                                        }
-                                      >
-                                        Copy
-                                      </button>
-                                      <SyntaxHighlighter
-                                        language={language}
-                                        style={dracula}
-                                        customStyle={{
-                                          margin: 0,
-                                          background: "transparent",
-                                          fontSize: "14px",
+                                          fontFamily: "'Fira Code', monospace",
+                                          textTransform: "capitalize",
                                         }}
                                       >
-                                        {children}
-                                      </SyntaxHighlighter>
+                                        {language}
+                                      </div>
+                                      <div style={{ position: "relative" }}>
+                                        <button
+                                          onClick={() =>
+                                            handleCopy(String(children))
+                                          }
+                                          style={{
+                                            position: "absolute",
+                                            top: "10px",
+                                            right: "10px",
+                                            background: "#444",
+                                            color: "white",
+                                            border: "none",
+                                            padding: "5px 10px",
+                                            borderRadius: "5px",
+                                            cursor: "pointer",
+                                            fontSize: "14px",
+                                            transition: "background 0.2s",
+                                          }}
+                                          onMouseEnter={(e) =>
+                                            (e.target.style.background = "#555")
+                                          }
+                                          onMouseLeave={(e) =>
+                                            (e.target.style.background = "#444")
+                                          }
+                                        >
+                                          Copy
+                                        </button>
+                                        <SyntaxHighlighter
+                                          language={language}
+                                          style={dracula}
+                                          customStyle={{
+                                            margin: 0,
+                                            background: "transparent",
+                                            fontSize: "14px",
+                                            padding: "15px",
+                                          }}
+                                        >
+                                          {children}
+                                        </SyntaxHighlighter>
+                                      </div>
                                     </div>
                                   );
                                 },
@@ -1329,15 +1404,7 @@ const ClaudeChatUI = () => {
                                 ),
                                 ol: ({ children }) => (
                                   <HighlightedBox>
-                                    <ol
-                                    // style={{
-                                    //   margin: "1em 0",
-                                    //   paddingLeft: "30px",
-                                    //   color: "#d4d4d4",
-                                    //   listStyleType: "decimal",
-                                    //   fontFamily: "'Inter', 'Arial', sans-serif",
-                                    // }}
-                                    >
+                                    <ol>
                                       <style>
                                         {`
               ol li::marker {
@@ -1570,7 +1637,138 @@ const ClaudeChatUI = () => {
                           </>
                         )}
                       </div>
-                      {/* <div style={{marginTop:"7px", marginLeft:"10px"}} className="timestamp text-white small">{msg.timestamp.toLocaleTimeString()}</div> */}
+                      {msg.sender === "assistant" && !msg.isImage && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "10px",
+                            marginTop: "5px",
+                            marginLeft: "20px",
+                            position: "relative",
+                          }}
+                        >
+                          <div style={{ position: "relative" }}>
+                            {notification.visible &&
+                              notification.type === "like" && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    bottom: "25px",
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                    background: "#2a2a2a",
+                                    color: "#ffffff",
+                                    padding: "5px 10px",
+                                    borderRadius: "4px",
+                                    fontSize: "12px",
+                                    boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {notification.message}
+                                </div>
+                              )}
+                            <button
+                              onClick={() => handleLike(index)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: "0",
+                                color:
+                                  feedback[activeChat]?.[index] === "like"
+                                    ? "#66b3ff"
+                                    : "#888",
+                              }}
+                              title="Like"
+                            >
+                              <ThumbsUp size={17} />
+                            </button>
+                          </div>
+                          <div style={{ position: "relative" }}>
+                            {notification.visible &&
+                              notification.type === "dislike" && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    bottom: "25px",
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                    background: "#2a2a2a",
+                                    color: "#ffffff",
+                                    padding: "5px 10px",
+                                    borderRadius: "4px",
+                                    fontSize: "12px",
+                                    boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {notification.message}
+                                </div>
+                              )}
+                            <button
+                              onClick={() => handleDislike(index)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: "0",
+                                color:
+                                  feedback[activeChat]?.[index] === "dislike"
+                                    ? "#ff4444"
+                                    : "#888",
+                              }}
+                              title="Dislike"
+                            >
+                              <ThumbsDown size={17} />
+                            </button>
+                          </div>
+                          <div style={{ position: "relative" }}>
+                            {notification.visible &&
+                              notification.type === "copy" && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    bottom: "25px",
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                    background: "#2a2a2a",
+                                    color: "#ffffff",
+                                    padding: "5px 10px",
+                                    borderRadius: "4px",
+                                    fontSize: "12px",
+                                    boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {notification.message}
+                                </div>
+                              )}
+                            <button
+                              onClick={() => {
+                                handleCopy(msg.text);
+                                showNotification("Content copied", "copy");
+                              }}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: "0",
+                                color: "#888",
+                              }}
+                              title="Copy"
+                            >
+                              <Copy size={17} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <div
+                        style={{ marginTop: "10px", marginLeft: "20px" }}
+                        className="timestamp text-white small"
+                      >
+                        {msg.timestamp.toLocaleTimeString()}
+                      </div>
                     </div>
 
                     {msg.sender === "user" &&
